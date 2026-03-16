@@ -65,7 +65,7 @@ class Dashboard:
         self.predicted_velocity = 0
         self.actual_velocity = 0
         self.shot_no = 1
-        self.load_shot_history()
+        
        
         try:
             self.ser = serial.Serial("COM5", 9600, timeout=1)
@@ -374,12 +374,14 @@ class Dashboard:
                  fg=self.C['text_dim'], font=('Courier New', 10, 'bold'),
                  anchor='w').pack(fill='x', pady=(0, 4))
 
-        cols = ('Shot', 'Velocity', 'Predicted', 'Error')
+        cols = ('Shot', 'Time', 'Velocity', 'Predicted', 'Error')
         self.shot_table = ttk.Treeview(rc, columns=cols, show='headings',
                                        height=7, style='T.Treeview')
-        for c in cols:
+        widths = [60,120,100,100,80]
+
+        for i,c in enumerate(cols):
             self.shot_table.heading(c, text=c.upper())
-            self.shot_table.column(c, width=110, anchor='center')
+            self.shot_table.column(c, width=widths[i], anchor='center')
         self.shot_table.pack(fill='both', expand=True)
 
     def update_actual_velocity(self, t1, t2):
@@ -394,13 +396,22 @@ class Dashboard:
             pass
 
     def calculate_error(self):
-        if self.predicted_velocity == 0:
-            return
-        error = abs(self.predicted_velocity - self.actual_velocity) / self.predicted_velocity * 100
-        color = self.C['accent2'] if error <= 10 else self.C['danger']
-        self.error_label.config(text=f'{error:.2f} %', fg=color)
-        self.save_excel(self.actual_velocity, error)
 
+        import math
+
+        if self.predicted_velocity == 0:
+            error = float('nan')   # No prediction available
+            error_display = "NaN"
+            color = self.C['warn']
+        else:
+            error = abs(self.predicted_velocity - self.actual_velocity) / self.predicted_velocity * 100
+            error_display = f"{error:.2f} %"
+            color = self.C['accent2'] if error <= 10 else self.C['danger']
+
+        self.error_label.config(text=error_display, fg=color)
+
+        # Always save velocity to Excel
+        self.save_excel(self.actual_velocity, error)
     def save_excel(self, velocity, error):
         file = 'shot_data.xlsx'
         now = datetime.datetime.now()
@@ -421,11 +432,14 @@ class Dashboard:
         except:
             print('Close Excel file to save data')
 
+        time_now = now.strftime('%H:%M:%S')
+
         self.shot_table.insert('', 'end', values=(
             self.shot_no,
-            round(velocity, 2),
-            round(self.predicted_velocity, 2),
-            f'{round(error, 2)}%'
+            time_now,
+            round(velocity,2),
+            round(self.predicted_velocity,2),
+            f'{round(error,2)}%' if not pd.isna(error) else "NaN"
         ))
         self.shot_no += 1
 
@@ -738,7 +752,8 @@ class Dashboard:
         )
         btn.pack(pady=30)
     def generate_pdf(self):
-
+        from reportlab.platypus import Table, TableStyle
+        from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas
         from reportlab.lib.colors import HexColor
@@ -835,7 +850,37 @@ class Dashboard:
         y -= 20
 
         c.drawString(50,y,f"Acceleration   : {self.physics_labels['acc'].cget('text')} m/s²")
+        y -= 40
+        # ================= SHOT HISTORY =================
 
+        c.setFont("Helvetica-Bold",14)
+        c.drawString(40,y,"SHOT HISTORY (SCREEN DATA)")
+        y -= 20
+
+        table_data = [["Shot","Time","Velocity","Predicted","Error"]]
+
+        for row in self.shot_table.get_children():
+
+            values = self.shot_table.item(row)['values']
+
+            table_data.append(values)
+
+        table = Table(table_data)
+
+        table.setStyle(TableStyle([
+            ("BACKGROUND",(0,0),(-1,0),colors.grey),
+            ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
+            ("GRID",(0,0),(-1,-1),1,colors.black),
+            ("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ]))
+
+        table.wrapOn(c,width,height)
+
+        table_height = len(table_data)*20
+
+        table.drawOn(c,40,y-table_height)
+
+        y -= (table_height+20)
         # ================= GRAPHS =================
 
         self.fig.savefig("graphs.png")

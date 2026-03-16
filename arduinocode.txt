@@ -1,0 +1,33 @@
+const int sensor1 = 2;
+const int sensor2 = 3;
+
+unsigned long startTime = 0;
+unsigned long endTime = 0;
+
+bool started = false;
+
+void setup() {
+  pinMode(sensor1, INPUT);
+  pinMode(sensor2, INPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+
+  if (digitalRead(sensor1) == LOW && !started) {
+    startTime = micros();
+    started = true;
+  }
+
+  if (digitalRead(sensor2) == LOW && started) {
+
+    endTime = micros();
+    unsigned long timeDiff = endTime - startTime;
+
+    Serial.print("TIME=");
+    Serial.println(timeDiff);   // microseconds
+
+    started = false;
+    delay(500);
+  }
+}

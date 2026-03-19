@@ -1,8 +1,9 @@
 import pandas as pd
 import joblib
+import numpy as np
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
 from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, HuberRegressor, BayesianRidge
 from sklearn.svm import SVR
@@ -34,17 +35,37 @@ def load_data():
     df["Projectile Type"] = df["Projectile Type"].astype("category").cat.codes
     df["Shape"] = df["Shape"].astype("category").cat.codes
     df["Material"] = df["Material"].astype("category").cat.codes
+    df["s_type"] = df["s_type"].astype("category").cat.codes
+
+    # -----------------------------
+    # HANDLE MISSING VALUES (Standard ML Practice)
+    # -----------------------------
+    df = df.fillna(df.mean(numeric_only=True))
 
     # features used for training
     X = df[
         [
             "Calibre",
+            "Projectile Type",
             "Projectile Dimension",
+            "dai",
             "projectile mass",
+            "total mass with sabbot",
+            "Petal burst pressure",
             "powder mass",
-            "Density",
+            "Shape",
+            "s_type",
+            "Breadth",
+            "Height",
+            "Material",
+            "c_drag",
             "Surface Area",
-            "Volume"
+            "Volume",
+            "SA/vol",
+            "Density",
+            "Moment of inerta",
+            "cd",
+            "sabo length"
         ]
     ]
 
@@ -62,15 +83,10 @@ def get_models():
     models = {
 
         "Linear Regression": LinearRegression(),
-
         "Ridge": Ridge(),
-
         "Lasso": Lasso(),
-
         "ElasticNet": ElasticNet(),
-
         "Huber": HuberRegressor(),
-
         "Bayesian Ridge": BayesianRidge(),
 
         "Polynomial Regression":
@@ -80,23 +96,15 @@ def get_models():
             ]),
 
         "SVR": SVR(),
-
         "KNN": KNeighborsRegressor(),
-
         "Decision Tree": DecisionTreeRegressor(),
-
         "Random Forest": RandomForestRegressor(n_estimators=200),
-
         "Extra Trees": ExtraTreesRegressor(),
-
         "Gradient Boosting": GradientBoostingRegressor(),
-
         "AdaBoost": AdaBoostRegressor(),
-
         "MLP Regressor": MLPRegressor(max_iter=2000),
 
         "XGBoost": xgb.XGBRegressor(objective="reg:squarederror"),
-
         "LightGBM": lgb.LGBMRegressor()
     }
 
@@ -113,7 +121,7 @@ def train():
     models = get_models()
 
     trained_models = {}
-    results = {}
+    results = []
 
     print("\nTraining Models...\n")
 
@@ -123,18 +131,28 @@ def train():
 
         preds = model.predict(X_test)
 
-        score = r2_score(y_test, preds)
+        r2 = r2_score(y_test, preds)
+        mse = mean_squared_error(y_test, preds)
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(y_test, preds)
 
         trained_models[name] = model
-        results[name] = score
 
-        print(f"{name} Accuracy: {score:.4f}")
+        results.append({
+            "Model": name,
+            "R2": r2,
+            "MSE": mse,
+            "RMSE": rmse,
+            "MAE": mae
+        })
 
-    # save models
+        print(f"{name} | R2: {r2:.4f} | RMSE: {rmse:.2f} | MAE: {mae:.2f}")
+
+    # save trained models
     joblib.dump(trained_models, "models/trained_models.pkl")
 
     # save accuracy report
-    report = pd.DataFrame(results.items(), columns=["Model", "Accuracy"])
+    report = pd.DataFrame(results)
     report.to_csv("models/model_results.csv", index=False)
 
     print("\nTraining Complete")

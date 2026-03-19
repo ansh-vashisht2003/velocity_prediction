@@ -6,6 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from sklearn import tree
 import numpy as np
 from models.model_utils import predict_velocity
+from models.powder_model_utils import predict_powder
 import datetime
 import os
 import serial
@@ -387,7 +388,7 @@ class Dashboard:
             self.shot_table.heading(c, text=c.upper())
             self.shot_table.column(c, width=widths[i], anchor='center')
         self.shot_table.pack(fill='both', expand=True)
-
+        
     def update_actual_velocity(self, t1, t2):
         try:
             distance = float(self.sensor_distance.get())
@@ -504,53 +505,99 @@ class Dashboard:
     # ══════════════════════════════════════════════════════════════════════════
     # TAB 2 — POWDER MASS
     # ══════════════════════════════════════════════════════════════════════════
+
     def build_tab2(self, tab):
-        outer, card = self.create_card(tab, 'POWDER MASS ESTIMATION', self.C['warn'])
-        outer.pack(fill='both', expand=True, padx=8, pady=8)
+
+        left = tk.Frame(tab, bg=self.C['bg'])
+        left.pack(side='left', fill='both', expand=True, padx=(8,4), pady=8)
+
+        right = tk.Frame(tab, bg=self.C['bg'])
+        right.pack(side='right', fill='both', expand=True, padx=(4,8), pady=8)
+
+        # LEFT CARD (INPUTS)
+        outer, card = self.create_card(left, 'POWDER MASS ESTIMATION (ML)', self.C['warn'])
+        outer.pack(fill='both', expand=True)
 
         ct = tk.Frame(card, bg=self.C['surface'])
         ct.pack(fill='both', expand=True, padx=16, pady=14)
 
         r = 0
-        self.calibre2        = self.create_input_field(ct, 'Calibre',               r, 0, True, calibres);         r+=1
-        self.projectile_type2= self.create_input_field(ct, 'Projectile Type',        r, 0, True, projectile_types); r+=1
-        self.dimension2      = self.create_input_field(ct, 'Projectile Dimension',   r, 0);                         r+=1
-        self.mass2           = self.create_input_field(ct, 'Projectile Mass',        r, 0);                         r+=1
-        self.total_mass2     = self.create_input_field(ct, 'Total Mass w/ Sabot',    r, 0);                         r+=1
-        self.pressure2       = self.create_input_field(ct, 'Petal Burst Pressure',   r, 0);                         r+=1
 
-        self.shape2   = self.create_input_field(ct, 'Shape',            0, 1, True, shapes)
-        self.breadth2 = self.create_input_field(ct, 'Breadth',          1, 1)
-        self.height2  = self.create_input_field(ct, 'Height',           2, 1)
-        self.material2= self.create_input_field(ct, 'Material',         3, 1, True, materials)
-        self.cdrag2   = self.create_input_field(ct, 'Drag Coefficient', 4, 1)
-        self.sa2      = self.create_input_field(ct, 'Surface Area',     5, 1)
-        self.vol2     = self.create_input_field(ct, 'Volume',           6, 1)
-        self.sabot2   = self.create_input_field(ct, 'Sabot Length',     7, 1)
-        self.target_velocity = self.create_input_field(ct, 'Target Velocity', 8, 0)
+        self.calibre2 = self.create_input_field(ct,'Calibre',r,0,True,calibres,'29 mm'); r+=1
+        self.projectile_type2 = self.create_input_field(ct,'Projectile Type',r,0,True,projectile_types); r+=1
+        self.dimension2 = self.create_input_field(ct,'Projectile Dimension',r,0,default='10'); r+=1
+        self.dai2 = self.create_input_field(ct,'DAI',r,0,default='10'); r+=1
+        self.mass2 = self.create_input_field(ct,'Projectile Mass',r,0,default='5'); r+=1
+        self.total_mass2 = self.create_input_field(ct,'Total Mass w/ Sabot',r,0,default='7'); r+=1
+        self.pressure2 = self.create_input_field(ct,'Petal Burst Pressure',r,0,default='80'); r+=1
 
-        self._sep(ct, 9, 4)
+        self.velocity2 = self.create_input_field(ct,'Actual Velocity',r,0,default='1000'); r+=1
 
-        btn_f = tk.Frame(ct, bg=self.C['surface'])
-        btn_f.grid(row=10, column=0, columnspan=4, pady=14)
-        self.create_button(btn_f, 'ESTIMATE POWDER MASS',
-                           self.estimate_powder, self.C['warn']).pack()
+        self.shape2 = self.create_input_field(ct,'Shape',0,1,True,shapes)
+        self.s_type2 = self.create_input_field(ct,'Sabot Type',1,1,True,s_types)
 
-        # Result display
-        res_blk = tk.Frame(ct, bg=self.C['surface2'],
-                           highlightbackground=self.C['warn'],
-                           highlightthickness=1)
-        res_blk.grid(row=11, column=0, columnspan=4, pady=14, padx=10, sticky='ew')
-        tk.Label(res_blk, text='ESTIMATED POWDER MASS',
-                 bg=self.C['surface2'], fg=self.C['text_dim'],
-                 font=('Courier New', 10)).pack(pady=(8, 0))
-        self.powder_result = tk.Label(res_blk, text='--- g',
-                                      bg=self.C['surface2'],
-                                      fg=self.C['warn'],
-                                      font=('Courier New', 24, 'bold'))
-        self.powder_result.pack(pady=(0, 10))
+        self.breadth2 = self.create_input_field(ct,'Breadth',2,1,default='5')
+        self.height2 = self.create_input_field(ct,'Height',3,1,default='8')
+        self.material2 = self.create_input_field(ct,'Material',4,1,True,materials)
 
-    # ══════════════════════════════════════════════════════════════════════════
+        self.cdrag2 = self.create_input_field(ct,'Drag Coefficient',5,1,default='0.3')
+        self.sa2 = self.create_input_field(ct,'Surface Area',6,1,default='300')
+        self.vol2 = self.create_input_field(ct,'Volume',7,1,default='500')
+        self.sa_vol2 = self.create_input_field(ct,'SA/Vol Ratio',8,1,default='0.6')
+        self.density2 = self.create_input_field(ct,'Density',9,1,default='2700')
+        self.moi2 = self.create_input_field(ct,'Moment of Inertia',10,1,default='0.2')
+        self.cd2 = self.create_input_field(ct,'Cd',11,1,default='0.3')
+        self.sabot2 = self.create_input_field(ct,'Sabot Length',12,1,default='40')
+
+        self._sep(ct,13,4)
+
+        btn_f = tk.Frame(ct,bg=self.C['surface'])
+        btn_f.grid(row=14,column=0,columnspan=4,pady=14)
+
+        self.create_button(
+            btn_f,
+            'PREDICT POWDER MASS',
+            self.predict_powder_mass,
+            self.C['warn']
+        ).pack()
+
+        # RESULT DISPLAY
+        res_blk = tk.Frame(ct,bg=self.C['surface2'],
+                        highlightbackground=self.C['warn'],
+                        highlightthickness=1)
+
+        res_blk.grid(row=15,column=0,columnspan=4,pady=14,padx=10,sticky='ew')
+
+        tk.Label(res_blk,text='ESTIMATED POWDER MASS',
+                bg=self.C['surface2'],
+                fg=self.C['text_dim'],
+                font=('Courier New',10)).pack(pady=(8,0))
+
+        self.powder_result = tk.Label(
+            res_blk,
+            text='--- g',
+            bg=self.C['surface2'],
+            fg=self.C['warn'],
+            font=('Courier New',24,'bold')
+        )
+
+        self.powder_result.pack(pady=(0,10))
+
+
+        # RIGHT CARD (GRAPHS)
+        outer2, card2 = self.create_card(right, "GAS GUN ANALYSIS", self.C['accent'])
+        outer2.pack(fill='both', expand=True)
+
+        self.fig_powder, self.ax_powder = plt.subplots(1,2, figsize=(8,4))
+        self.fig_powder.patch.set_facecolor(self.C['surface'])
+
+        for ax in self.ax_powder:
+            ax.set_facecolor(self.C['bg'])
+            ax.grid(True, alpha=0.2)
+
+        self.canvas_powder = FigureCanvasTkAgg(self.fig_powder, card2)
+        self.canvas_powder.get_tk_widget().pack(fill='both', expand=True, padx=8, pady=8)
+        # ══════════════════════════════════════════════════════════════════════════
     # TAB 3 — PHYSICS
     # ══════════════════════════════════════════════════════════════════════════
     def build_tab3(self, tab):
@@ -647,7 +694,7 @@ class Dashboard:
         try:
             results = pd.read_csv('models/model_results.csv')
             for _, row in results.iterrows():
-                tree.insert('', 'end', values=(row['Model'], f"{row['Accuracy']:.2f}%"))
+                tree.insert('', 'end', values=(row['Model'], f"{row['R2']:.3f}%"))
 
             fig2, ax = plt.subplots(figsize=(5, 4))
             fig2.patch.set_facecolor(self.C['surface'])
@@ -655,7 +702,7 @@ class Dashboard:
 
             bar_colors = [self.C['accent'], self.C['accent2'],
                           self.C['warn'], self.C['danger']]
-            bars = ax.bar(results['Model'], results['Accuracy'],
+            bars = ax.bar(results['Model'], results['R2'],
                           color=[bar_colors[i % len(bar_colors)]
                                  for i in range(len(results))],
                           edgecolor=self.C['border'], linewidth=0.8)
@@ -664,10 +711,10 @@ class Dashboard:
                          fontsize=11, fontweight='bold', fontfamily='Courier New')
             ax.set_xlabel('Model',    color=self.C['text_dim'],
                           fontfamily='Courier New', fontsize=8)
-            ax.set_ylabel('Accuracy (%)', color=self.C['text_dim'],
+            ax.set_ylabel('R2 Score (%)', color=self.C['text_dim'],
                           fontfamily='Courier New', fontsize=8)
             ax.tick_params(colors=self.C['text_dim'], labelsize=7)
-            ax.set_ylim(0, max(results['Accuracy']) * 1.15)
+            ax.set_ylim(0, max(results['R2']) * 1.15)
             for spine in ax.spines.values():
                 spine.set_color(self.C['border'])
             ax.grid(True, axis='y', alpha=0.15, color=self.C['border'])
@@ -952,15 +999,51 @@ class Dashboard:
 
             print("Prediction error:", e)
             self.predicted_label.config(text="INVALID INPUT")
+    def predict_powder_mass(self):
 
-    def estimate_powder(self):
         try:
-            mass     = float(self.mass2.get())
-            velocity = float(self.target_velocity.get())
-            powder   = (mass * velocity) / 1000
-            self.powder_result.config(text=f'{powder:.2f} g')
-        except:
-            self.powder_result.config(text='INVALID INPUT')
+
+            projectile_type = projectile_types.index(self.projectile_type2.get())
+            shape = shapes.index(self.shape2.get())
+            material = materials.index(self.material2.get())
+            s_type = s_types.index(self.s_type2.get())
+
+            inputs = [
+
+                float(self.calibre2.get().replace(' mm','')),
+                projectile_type,
+                float(self.dimension2.get()),
+                float(self.dai2.get()),
+                float(self.mass2.get()),
+                float(self.total_mass2.get()),
+                float(self.pressure2.get()),
+                float(self.velocity2.get()),
+
+                shape,
+                s_type,
+
+                float(self.breadth2.get()),
+                float(self.height2.get()),
+                material,
+                float(self.cdrag2.get()),
+                float(self.sa2.get()),
+                float(self.vol2.get()),
+                float(self.sa_vol2.get()),
+                float(self.density2.get()),
+                float(self.moi2.get()),
+                float(self.cd2.get()),
+                float(self.sabot2.get())
+            ]
+
+            powder = predict_powder(inputs)
+
+            self.powder_result.config(text=f"{powder:.2f} g")
+            velocity_val = float(self.velocity2.get()) if self.velocity2.get() else 0
+            self.update_powder_graphs(velocity_val, powder)
+        except Exception as e:
+
+            print("Powder prediction error:",e)
+            self.powder_result.config(text="INVALID INPUT")
 
     def update_physics(self):
         try:
@@ -1028,8 +1111,120 @@ class Dashboard:
         except:
             pass
 
+    def update_powder_graphs(self, velocity, powder):
+
+        try:
+
+            # Simulated chamber distance
+            distance = np.linspace(0,2,100)
+
+            # velocity profile
+            velocity_curve = velocity * (1 - np.exp(-distance*2))
+
+            # chamber pressure relation
+            chamber_pressure = powder * 30 * np.exp(-distance)
+
+            # clear plots
+            for ax in self.ax_powder:
+                ax.clear()
+                ax.set_facecolor(self.C['bg'])
+                ax.grid(True, alpha=0.2)
+
+            # Graph 1
+            self.ax_powder[0].plot(distance, velocity_curve,
+                                color=self.C['accent'],
+                                linewidth=2)
+
+            self.ax_powder[0].set_title("Distance vs Velocity",
+                                    color=self.C['accent'])
+
+            self.ax_powder[0].set_xlabel("Gas Chamber Distance (m)")
+            self.ax_powder[0].set_ylabel("Velocity (m/s)")
+
+            # Graph 2
+            self.ax_powder[1].plot(chamber_pressure, velocity_curve,
+                                color=self.C['warn'],
+                                linewidth=2)
+
+            self.ax_powder[1].set_title("Chamber Pressure vs Velocity",
+                                    color=self.C['accent'])
+
+            self.ax_powder[1].set_xlabel("Chamber Pressure")
+            self.ax_powder[1].set_ylabel("Velocity (m/s)")
+
+            self.fig_powder.tight_layout()
+            self.canvas_powder.draw()
+
+        except:
+            pass
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LANDING PAGE (SPLASH SCREEN)
+# ──────────────────────────────────────────────────────────────────────────────
+def show_landing_and_launch():
+    root = tk.Tk()
+    root.withdraw()  # hide main window initially
+
+    # Create splash window (top-level, no decorations)
+    splash = tk.Toplevel(root)
+    splash.title("")
+    splash.overrideredirect(True)
+    splash.configure(bg='#1c2030')
+
+    # Size and center
+    splash_width = 650
+    splash_height = 350
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    x = (screen_width - splash_width) // 2
+    y = (screen_height - splash_height) // 2
+    splash.geometry(f"{splash_width}x{splash_height}+{x}+{y}")
+
+    # Landing content
+    title_font = ('Courier New', 32, 'bold')
+    subtitle_font = ('Courier New', 18)
+    version_font = ('Courier New', 14)
+
+    tk.Label(splash, text="BALLISTIC AI", font=title_font,
+             fg='#5bc8e8', bg='#1c2030').pack(pady=(50, 10))
+    tk.Label(splash, text="Tactical Simulator", font=subtitle_font,
+             fg='#a0bcd0', bg='#1c2030').pack()
+    tk.Label(splash, text="v2.0", font=version_font,
+             fg='#4dd9a0', bg='#1c2030').pack(pady=(10, 30))
+
+    # Progress bar (simple)
+    progress = ttk.Progressbar(splash, length=400, mode='determinate')
+    progress.pack(pady=20)
+
+    status = tk.Label(splash, text="Initializing modules...", font=('Courier New', 10),
+                      fg='#7a96b0', bg='#1c2030')
+    status.pack()
+
+    # Update progress and then launch dashboard
+    def update_progress(step=0):
+        if step <= 100:
+            progress['value'] = step
+            if step == 30:
+                status.config(text="Loading datasets...")
+            elif step == 60:
+                status.config(text="Calibrating AI models...")
+            elif step == 90:
+                status.config(text="Almost ready...")
+            splash.update_idletasks()
+            root.after(20, update_progress, step+1)
+        else:
+            splash.destroy()
+            root.deiconify()
+            # Now create and run the main dashboard
+            app = Dashboard(root)
+            root.mainloop()
+
+    # Start the progress after a short delay
+    root.after(100, update_progress)
+
+    root.mainloop()
+
 
 if __name__ == '__main__':
-    root = tk.Tk()
-    app = Dashboard(root)
-    root.mainloop()
+    show_landing_and_launch()

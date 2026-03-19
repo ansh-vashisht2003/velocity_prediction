@@ -30,25 +30,36 @@ class Dashboard:
 
         # ── SOFTER TACTICAL PALETTE (easy on eyes) ───────────────────────────
         self.C = {
-            'bg':           '#1c2030',   # softer dark blue-grey base
-            'surface':      '#242a3a',   # card surface
-            'surface2':     '#2a3248',   # elevated surface
-            'border':       '#364256',   # visible border
-            'border_bright':'#4a6080',   # hover/active border
-            'accent':       '#5bc8e8',   # softer sky blue
-            'accent2':      '#4dd9a0',   # softer mint green
-            'danger':       '#e86070',   # softer red
-            'warn':         '#e8b050',   # softer amber
-            'text':         '#dde6f0',   # soft white
-            'text_dim':     '#7a96b0',   # readable muted text
-            'text_mid':     '#a0bcd0',   # mid text
-            'header_line':  '#5bc8e8',   # top accent line
-            'input_bg':     '#1e2638',   # input background
-            'row_even':     '#242a3a',
-            'row_odd':      '#202636',
-            'sel':          '#2a4a6e',
-        }
 
+    # Background layers
+    'bg':            '#0c1118',   # deep navy black
+    'surface':       '#151c26',   # card background
+    'surface2':      '#1c2430',   # elevated panels
+    'surface3':      '#0f1620',   # header strip
+
+    # Borders
+    'border':        '#2b3645',
+    'border_bright': '#3e4c61',
+
+    # Accent colors
+    'accent':        '#4cc9f0',   # neon cyan
+    'accent2':       '#80ffdb',   # mint green
+    'danger':        '#ff4d6d',   # red
+    'warn':          '#ffb703',   # amber
+
+    # Text
+    'text':          '#e6edf3',
+    'text_mid':      '#9fb3c8',
+    'text_dim':      '#6c7f92',
+
+    # Inputs
+    'input_bg':      '#0f1620',
+
+    # Table
+    'row_even':      '#151c26',
+    'row_odd':       '#111822',
+    'sel':           '#2a3a50'
+}
         root.configure(bg=self.C['bg'])
         self._setup_fonts()
         self._setup_styles()
@@ -77,15 +88,19 @@ class Dashboard:
 
     # ── FONTS ─────────────────────────────────────────────────────────────────
     def _setup_fonts(self):
-        self.font_title    = ('Courier New', 15, 'bold')
-        self.font_label    = ('Courier New', 11)
+
+        self.font_title    = ('Segoe UI', 16, 'bold')
+        self.font_label    = ('Segoe UI', 11)
         self.font_mono     = ('Consolas', 11)
-        self.font_value    = ('Courier New', 24, 'bold')
-        self.font_value_sm = ('Courier New', 16, 'bold')
-        self.font_tab      = ('Courier New', 11, 'bold')
-        self.font_btn      = ('Courier New', 12, 'bold')
+
+        self.font_value    = ('Segoe UI', 28, 'bold')
+        self.font_value_sm = ('Segoe UI', 18, 'bold')
+
+        self.font_tab      = ('Segoe UI', 11, 'bold')
+        self.font_btn      = ('Segoe UI', 12, 'bold')
+
         self.font_status   = ('Consolas', 10)
-        self.font_head     = ('Courier New', 20, 'bold')
+        self.font_head     = ('Segoe UI', 22, 'bold')
 
     # ── STYLES ────────────────────────────────────────────────────────────────
     def _setup_styles(self):
@@ -98,17 +113,14 @@ class Dashboard:
                     borderwidth=0,
                     tabmargins=[0, 0, 0, 0])
         s.configure('T.TNotebook.Tab',
-                    background=self.C['surface'],
-                    foreground=self.C['text_dim'],
-                    padding=[18, 9],
-                    font=self.font_tab,
-                    borderwidth=0,
-                    focuscolor=self.C['bg'])
+            background=self.C['surface'],
+            foreground=self.C['text_dim'],
+            padding=[20,10],
+            font=self.font_tab,
+            borderwidth=0)
         s.map('T.TNotebook.Tab',
-              background=[('selected', self.C['bg'])],
-              foreground=[('selected', self.C['accent'])],
-              expand=[('selected', [0, 0, 0, 2])])
-
+      background=[('selected', self.C['bg'])],
+      foreground=[('selected', self.C['accent'])])
         # Combobox
         s.configure('T.TCombobox',
                     fieldbackground=self.C['input_bg'],
@@ -122,18 +134,22 @@ class Dashboard:
               foreground=[('readonly', self.C['text'])])
 
         # Treeview — tactical grid
-        s.configure('T.Treeview',
-                    background=self.C['surface'],
-                    foreground=self.C['text_mid'],
-                    fieldbackground=self.C['surface'],
-                    borderwidth=0,
-                    rowheight=32,
-                    font=self.font_mono)
-        s.configure('T.Treeview.Heading',
-                    background=self.C['surface2'],
-                    foreground=self.C['accent'],
-                    relief='flat',
-                    font=('Courier New', 11, 'bold'))
+        s.configure(
+    'T.Treeview',
+    background=self.C['surface'],
+    foreground=self.C['text'],
+    fieldbackground=self.C['surface'],
+    rowheight=36,
+    font=('Consolas', 11),
+    borderwidth=0
+)
+
+        s.configure(
+    'T.Treeview.Heading',
+    background=self.C['surface2'],
+    foreground=self.C['accent'],
+    font=('Segoe UI', 10, 'bold')
+)
         s.map('T.Treeview',
               background=[('selected', self.C['sel'])],
               foreground=[('selected', self.C['accent'])])
@@ -209,23 +225,35 @@ class Dashboard:
 
     # ── CARD ──────────────────────────────────────────────────────────────────
     def create_card(self, parent, title, accent_color):
-        outer = tk.Frame(parent, bg=self.C['border'], padx=1, pady=1)
-        card  = tk.Frame(outer, bg=self.C['surface'])
+
+        outer = tk.Frame(parent,
+                        bg=self.C['border'],
+                        padx=1,
+                        pady=1)
+
+        card = tk.Frame(outer,
+                        bg=self.C['surface'])
+
         card.pack(fill='both', expand=True)
 
-        # Coloured top bar (thin)
-        tk.Frame(card, bg=accent_color, height=3).pack(fill='x')
+        # Accent top strip
+        tk.Frame(card,
+                bg=accent_color,
+                height=4).pack(fill='x')
 
-        # Title row
-        title_row = tk.Frame(card, bg=self.C['surface2'])
-        title_row.pack(fill='x')
-        tk.Label(title_row, text=f'  {title}',
-                 bg=self.C['surface2'], fg=accent_color,
-                 font=('Courier New', 12, 'bold'),
-                 anchor='w').pack(side='left', pady=8)
-        # Decorative corner glyph
-        tk.Label(title_row, text='◫  ', bg=self.C['surface2'],
-                 fg=self.C['text_dim'], font=self.font_status).pack(side='right')
+        header = tk.Frame(card,
+                        bg=self.C['surface2'])
+
+        header.pack(fill='x')
+
+        tk.Label(
+            header,
+            text=f"  {title}",
+            bg=self.C['surface2'],
+            fg=accent_color,
+            font=('Segoe UI', 12, 'bold'),
+            anchor='w'
+        ).pack(side='left', pady=10)
 
         return outer, card
 
@@ -262,25 +290,30 @@ class Dashboard:
 
     # ── BUTTON ────────────────────────────────────────────────────────────────
     def create_button(self, parent, text, command, color):
+
         btn = tk.Button(
-            parent, text=f'▶  {text}', command=command,
-            bg=self.C['surface2'], fg=color,
-            font=('Courier New', 12, 'bold'),
-            relief='flat', bd=0, cursor='hand2',
-            padx=30, pady=12,
-            activebackground=self.C['border'],
-            activeforeground=color,
-            highlightbackground=color,
-            highlightthickness=1
+            parent,
+            text=text,
+            command=command,
+            bg=color,
+            fg="#000000",
+            font=('Segoe UI', 12, 'bold'),
+            relief='flat',
+            bd=0,
+            padx=30,
+            pady=12,
+            cursor='hand2'
         )
 
         def on_enter(e):
-            btn.config(bg=self.C['border'], fg='#ffffff')
-        def on_leave(e):
-            btn.config(bg=self.C['surface2'], fg=color)
+            btn.config(bg=self.C['accent2'])
 
-        btn.bind('<Enter>', on_enter)
-        btn.bind('<Leave>', on_leave)
+        def on_leave(e):
+            btn.config(bg=color)
+
+        btn.bind("<Enter>", on_enter)
+        btn.bind("<Leave>", on_leave)
+
         return btn
 
     # ── SEPARATOR ─────────────────────────────────────────────────────────────
@@ -650,14 +683,15 @@ class Dashboard:
         self.fig.patch.set_facecolor(bg_hex)
 
         for ax in self.axs.flat:
-            ax.set_facecolor(plot_bg)
-            ax.tick_params(colors=self.C['text_dim'], labelsize=7)
+            ax.set_facecolor(self.C['surface'])
+            ax.tick_params(colors=self.C['text_mid'])
             ax.xaxis.label.set_color(self.C['text_dim'])
             ax.yaxis.label.set_color(self.C['text_dim'])
             ax.title.set_color(self.C['accent'])
             for spine in ax.spines.values():
                 spine.set_color(self.C['border'])
-            ax.grid(True, alpha=0.15, color=self.C['border'])
+            ax.set_facecolor(self.C['surface'])
+            ax.tick_params(colors=self.C['text_mid'])
 
         self.fig.tight_layout(pad=2.0)
 

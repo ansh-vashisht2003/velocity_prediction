@@ -17,7 +17,7 @@ df = pd.read_csv("data/fake_gas_gun_dataset.csv")
 projectile_types = sorted(df["Projectile Type"].dropna().unique())
 shapes = sorted(df["Shape"].dropna().unique())
 materials = sorted(df["Material"].dropna().unique())
-
+s_types = sorted(df["s_type"].dropna().unique())
 calibres = ["40 mm", "29 mm"]
 
 
@@ -306,28 +306,32 @@ class Dashboard:
         ct.pack(fill='both', expand=True, padx=12, pady=10)
 
         r = 0
-        self.calibre           = self.create_input_field(ct, 'Calibre',                r, 0, True, calibres, '29 mm'); r+=1
-        self.projectile_type   = self.create_input_field(ct, 'Projectile Type',         r, 0, True, projectile_types); r+=1
-        self.dimension         = self.create_input_field(ct, 'Projectile Dimension',    r, 0, default='10'); r+=1
-        self.mass              = self.create_input_field(ct, 'Projectile Mass',         r, 0, default='5'); r+=1
-        self.total_mass        = self.create_input_field(ct, 'Total Mass w/ Sabot',     r, 0, default='7'); r+=1
-        self.powder            = self.create_input_field(ct, 'Powder Mass',             r, 0, default='3'); r+=1
-        self.pressure          = self.create_input_field(ct, 'Petal Burst Pressure',    r, 0, default='80'); r+=1
-        self.sensor_distance   = self.create_input_field(ct, 'Sensor Distance (m)',     r, 0, default='1'); r+=1
-
-        self.shape   = self.create_input_field(ct, 'Shape',            0, 1, True, shapes)
-        self.breadth = self.create_input_field(ct, 'Breadth',          1, 1, default='5')
-        self.height  = self.create_input_field(ct, 'Height',           2, 1, default='8')
-        self.material= self.create_input_field(ct, 'Material',         3, 1, True, materials)
-        self.cdrag   = self.create_input_field(ct, 'Drag Coefficient', 4, 1, default='0.3')
-        self.sa      = self.create_input_field(ct, 'Surface Area',     5, 1, default='300')
-        self.vol     = self.create_input_field(ct, 'Volume',           6, 1, default='500')
-        self.sabot   = self.create_input_field(ct, 'Sabot Length',     7, 1, default='40')
-
-        self._sep(ct, 8, 4)
+        self.calibre           = self.create_input_field(ct, 'Calibre', r, 0, True, calibres, '29 mm'); r+=1
+        self.projectile_type   = self.create_input_field(ct, 'Projectile Type', r, 0, True, projectile_types); r+=1
+        self.dimension         = self.create_input_field(ct, 'Projectile Dimension', r, 0, default='10'); r+=1
+        self.dai               = self.create_input_field(ct, 'DAI', r, 0, default='10'); r+=1
+        self.mass              = self.create_input_field(ct, 'Projectile Mass', r, 0, default='5'); r+=1
+        self.total_mass        = self.create_input_field(ct, 'Total Mass w/ Sabot', r, 0, default='7'); r+=1
+        self.pressure          = self.create_input_field(ct, 'Petal Burst Pressure', r, 0, default='80'); r+=1
+        self.powder            = self.create_input_field(ct, 'Powder Mass', r, 0, default='3'); r+=1
+        self.sensor_distance = self.create_input_field(ct, 'Sensor Distance (m)', r, 0, default='1'); r+=1
+        self.shape             = self.create_input_field(ct, 'Shape', 0, 1, True, shapes)
+        self.s_type = self.create_input_field(ct, 'Sabot Type', 1, 1, True, s_types)
+        self.breadth           = self.create_input_field(ct, 'Breadth', 2, 1, default='5')
+        self.height            = self.create_input_field(ct, 'Height', 3, 1, default='8')
+        self.material          = self.create_input_field(ct, 'Material', 4, 1, True, materials)
+        self.cdrag             = self.create_input_field(ct, 'Drag Coefficient', 5, 1, default='0.3')
+        self.sa                = self.create_input_field(ct, 'Surface Area', 6, 1, default='300')
+        self.vol               = self.create_input_field(ct, 'Volume', 7, 1, default='500')
+        self.sa_vol            = self.create_input_field(ct, 'SA/Vol Ratio', 8, 1, default='0.6')
+        self.density           = self.create_input_field(ct, 'Density', 9, 1, default='2700')
+        self.moi               = self.create_input_field(ct, 'Moment of Inertia', 10, 1, default='0.2')
+        self.cd                = self.create_input_field(ct, 'Cd', 11, 1, default='0.3')
+        self.sabot             = self.create_input_field(ct, 'Sabot Length', 12, 1, default='40')
+        self._sep(ct, 13, 4)
 
         btn_f = tk.Frame(ct, bg=self.C['surface'])
-        btn_f.grid(row=9, column=0, columnspan=4, pady=12)
+        btn_f.grid(row=14, column=0, columnspan=4, pady=12)
         self.predict_btn = self.create_button(btn_f, 'PREDICT VELOCITY', self.predict, self.C['accent'])
         self.predict_btn.pack()
 
@@ -903,23 +907,51 @@ class Dashboard:
     # ══════════════════════════════════════════════════════════════════════════
     def predict(self):
         try:
+
+            # encode categorical
+            projectile_type = projectile_types.index(self.projectile_type.get())
+            shape           = shapes.index(self.shape.get())
+            material        = materials.index(self.material.get())
+            s_type          = s_types.index(self.s_type.get())
             inputs = [
-                float(self.calibre.get().replace(' mm', '')),
+
+                float(self.calibre.get().replace(' mm','')),
+                projectile_type,
                 float(self.dimension.get()),
+                float(self.dai.get()),
                 float(self.mass.get()),
+                float(self.total_mass.get()),
+                float(self.pressure.get()),
                 float(self.powder.get()),
+                shape,
+                s_type,  # s_type (can improve later)
+                float(self.breadth.get()),
+                float(self.height.get()),
+                material,
+                float(self.cdrag.get()),
                 float(self.sa.get()),
                 float(self.vol.get()),
-                float(self.cdrag.get())
+                float(self.sa_vol.get()),
+                float(self.density.get()),
+                float(self.moi.get()),
+                float(self.cd.get()),
+                float(self.sabot.get())
             ]
+
             velocity = predict_velocity(inputs)
+
             self.predicted_velocity = velocity
             self.velocity = velocity
-            self.predicted_label.config(text=f'{velocity:.2f} m/s')
+
+            self.predicted_label.config(text=f"{velocity:.2f} m/s")
+
             self.update_physics()
             self.update_graphs()
-        except:
-            self.predicted_label.config(text='INVALID INPUT')
+
+        except Exception as e:
+
+            print("Prediction error:", e)
+            self.predicted_label.config(text="INVALID INPUT")
 
     def estimate_powder(self):
         try:

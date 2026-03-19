@@ -80,11 +80,22 @@ class Dashboard:
         
        
         try:
-            self.ser = serial.Serial("COM5", 9600, timeout=1)
-            print("Arduino Connected")
-            threading.Thread(target=self.read_arduino, daemon=True).start()
+    # RS232 SERIAL CONFIG
+            self.ser = serial.Serial(
+        port="COM5",        # change if needed
+        baudrate=9600,      # match your RS232 device
+        bytesize=serial.EIGHTBITS,
+        parity=serial.PARITY_NONE,
+        stopbits=serial.STOPBITS_ONE,
+        timeout=1
+    )
+
+            print("RS232 Device Connected")
+
+            threading.Thread(target=self.read_rs232, daemon=True).start()
+
         except Exception as e:
-            print(f"Error connecting to Arduino: {e}")
+            print(f"RS232 connection error: {e}")
 
     # ── FONTS ─────────────────────────────────────────────────────────────────
     def _setup_fonts(self):
@@ -494,25 +505,32 @@ class Dashboard:
                 ))
             self.shot_no = len(df_history) + 1
 
-    def read_arduino(self):
+    def read_rs232(self):
 
         while True:
             try:
+
                 if self.ser.in_waiting > 0:
 
-                    line = self.ser.readline().decode().strip()
+                    line = self.ser.readline().decode(errors="ignore").strip()
 
-                    print("Arduino:", line)
+                    print("RS232:", line)
 
-                    if line.startswith("TIME="):
+                    # Example expected format from device
+                    # TIME=12345
 
-                        time_us = float(line.replace("TIME=",""))
+                    if "TIME=" in line:
 
-                        self.root.after(0, self.calculate_velocity_from_time, time_us)
+                        time_us = float(line.replace("TIME=", ""))
+
+                        self.root.after(
+                            0,
+                            self.calculate_velocity_from_time,
+                            time_us
+                        )
 
             except Exception as e:
-                print("Serial read error:", e)
-
+                print("RS232 read error:", e)
     def update_actual_velocity_value(self, velocity):
         self.actual_velocity = velocity
         self.actual_label.config(text=f'{velocity:.2f} m/s')
